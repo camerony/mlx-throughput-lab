@@ -227,7 +227,8 @@ def start_mlx_server(port=None, host=None, extra_args=None, ready_timeout_s=None
     cmd = [
         sys.executable,
         "-m",
-        "mlx_lm.server",
+        "mlx_lm",
+        "server",
         "--host",
         host,
         "--port",
