@@ -205,24 +205,21 @@ def start_mlx_server(port=None, host=None, extra_args=None, ready_timeout_s=None
     if extra_args is None:
         extra_args = parse_comma_args(os.environ.get("MLX_SERVER_ARGS", ""))
 
-    # Get concurrency settings
-    decode_concurrency = int(os.environ.get("MLX_DECODE_CONCURRENCY", "32"))
-    prompt_concurrency = int(os.environ.get("MLX_PROMPT_CONCURRENCY", "8"))
-
-    # Check for overrides in extra_args
-    decode_override = _get_flag_value(extra_args, "--decode-concurrency")
-    if decode_override:
-        try:
-            decode_concurrency = int(decode_override)
-        except ValueError:
-            pass
-
-    prompt_override = _get_flag_value(extra_args, "--prompt-concurrency")
-    if prompt_override:
-        try:
-            prompt_concurrency = int(prompt_override)
-        except ValueError:
-            pass
+    # Filter out unsupported concurrency flags from extra_args
+    # Note: --decode-concurrency and --prompt-concurrency were removed in recent mlx-lm versions
+    filtered_args = []
+    skip_next = False
+    for i, arg in enumerate(extra_args):
+        if skip_next:
+            skip_next = False
+            continue
+        if arg in ("--decode-concurrency", "--prompt-concurrency"):
+            # Skip this flag and its value
+            skip_next = True
+            continue
+        if arg.startswith("--decode-concurrency=") or arg.startswith("--prompt-concurrency="):
+            continue
+        filtered_args.append(arg)
 
     cmd = [
         sys.executable,
@@ -236,11 +233,7 @@ def start_mlx_server(port=None, host=None, extra_args=None, ready_timeout_s=None
         "--model",
         model_path,
     ]
-    if not _has_flag(extra_args, "--decode-concurrency"):
-        cmd += ["--decode-concurrency", str(decode_concurrency)]
-    if not _has_flag(extra_args, "--prompt-concurrency"):
-        cmd += ["--prompt-concurrency", str(prompt_concurrency)]
-    cmd += extra_args
+    cmd += filtered_args
 
     process = subprocess.Popen(
         cmd,
